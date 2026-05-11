@@ -1,0 +1,85 @@
+name: CI - Build and Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Validate backend Python compilation
+        run: python -m compileall backend
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Build Docker stack
+        run: docker compose build
+
+      - name: Start Docker stack
+        run: docker compose up -d
+
+      - name: Wait for services to become ready
+        run: |
+          for i in {1..30}; do
+            if curl --silent --fail http://localhost:8000/docs > /dev/null && curl --silent --fail http://localhost:3000 > /dev/null; then
+              echo "Backend and frontend are ready."
+              exit 0
+            fi
+            echo "Waiting for services to become ready... attempt $i"
+            sleep 5
+          done
+          echo "Services did not become ready in time."
+          exit 1
+
+      - name: Check Docker container status
+        run: docker compose ps
+
+      - name: Validate backend is responding
+        run: |
+          curl --fail http://localhost:8000 || curl --fail http://localhost:8000/docs
+
+      - name: Validate frontend is responding
+        run: curl --fail http://localhost:3000
+
+      - name: Show Docker logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Shut down Docker containers
+        if: always()
+        run: docker compose down -v

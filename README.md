@@ -187,6 +187,15 @@ Set backend URL if needed:
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
+## CI/CD Pipeline
+
+- GitHub Actions workflow is available at `.github/workflows/ci.yml`
+- It runs on push to `main`, pull request to `main`, and manual trigger
+- It validates backend Python compilation
+- It builds the frontend
+- It builds and starts the full Docker Compose stack
+- It checks backend and frontend availability
+
 ## Demo flow
 
 1. Login as requester and create a purchase requisition.
