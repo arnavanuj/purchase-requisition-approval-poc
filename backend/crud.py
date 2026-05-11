@@ -1,0 +1,210 @@
+from datetime import datetime
+
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session, joinedload
+
+from auth import hash_password
+from models import ApprovalHistory, Notification, PurchaseRequisition, User
+
+
+REQUESTER_EMAIL = "requester@test.com"
+APPROVER_1_EMAIL = "avi.anuj1@gmail.com"
+APPROVER_2_EMAIL = "arnav.anuj@gmail.com"
+
+STATUS_PENDING_L1 = "Pending Level 1 Approval"
+STATUS_PENDING_L2 = "Pending Level 2 Approval"
+STATUS_APPROVED = "Fully Approved"
+STATUS_REJECTED = "Rejected"
+
+LEVEL_1 = "Approver 1"
+LEVEL_2 = "Approver 2"
+LEVEL_COMPLETED = "Completed"
+LEVEL_CLOSED = "Closed"
+
+
+def create_seed_user(db: Session, email: str, password: str, role: str) -> User:
+    existing = db.query(User).filter(User.email == email).first()
+    if existing:
+        return existing
+    user = User(email=email, password=hash_password(password), role=role)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def generate_pr_number(db: Session) -> str:
+    current_year = datetime.utcnow().year
+    prefix = f"PR-{current_year}-"
+    count = db.query(PurchaseRequisition).filter(PurchaseRequisition.pr_number.like(f"{prefix}%")).count()
+    return f"{prefix}{count + 1:04d}"
+
+
+def create_notification(db: Session, pr_id: int, recipient_email: str, message: str) -> Notification:
+    notification = Notification(pr_id=pr_id, recipient_email=recipient_email, message=message)
+    db.add(notification)
+    db.flush()
+    return notification
+
+
+def create_approval_history(
+    db: Session,
+    pr_id: int,
+    approver_email: str,
+    approval_level: str,
+    action: str,
+    comments: str,
+) -> ApprovalHistory:
+    history = ApprovalHistory(
+        pr_id=pr_id,
+        approver_email=approver_email,
+        approval_level=approval_level,
+        action=action,
+        comments=comments,
+    )
+    db.add(history)
+    db.flush()
+    return history
+
+
+def get_pr_query(db: Session):
+    return db.query(PurchaseRequisition).options(
+        joinedload(PurchaseRequisition.creator),
+        joinedload(PurchaseRequisition.approval_history),
+        joinedload(PurchaseRequisition.notifications),
+    )
+
+
+def create_purchase_requisition(db: Session, payload, current_user: User):
+    if current_user.role != "requester":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only requester can create PR.")
+
+    pr = PurchaseRequisition(
+        pr_number=generate_pr_number(db),
+        title=payload.title.strip(),
+        department=payload.department.strip(),
+        requested_by=payload.requested_by.strip(),
+        item_name=payload.item_name.strip(),
+        item_description=payload.item_description.strip(),
+        quantity=payload.quantity,
+        estimated_cost=payload.estimated_cost,
+        business_justification=payload.business_justification.strip(),
+        required_date=payload.required_date,
+        priority=payload.priority,
+        status=STATUS_PENDING_L1,
+        current_approval_level=LEVEL_1,
+        created_by_user_id=current_user.id,
+    )
+    db.add(pr)
+    db.flush()
+
+    notification = create_notification(
+        db,
+        pr.id,
+        APPROVER_1_EMAIL,
+        f"Notification email sent to Approver 1: {APPROVER_1_EMAIL}\nPR Number: {pr.pr_number}",
+    )
+
+    db.commit()
+    return get_purchase_requisition_by_id(db, pr.id), notification
+
+
+def list_purchase_requisitions(db: Session, current_user: User):
+    query = get_pr_query(db)
+    if current_user.role == "requester":
+        return query.filter(PurchaseRequisition.created_by_user_id == current_user.id).order_by(PurchaseRequisition.created_at.desc()).all()
+    if current_user.role == "approver1":
+        return query.filter(PurchaseRequisition.status == STATUS_PENDING_L1).order_by(PurchaseRequisition.created_at.desc()).all()
+    if current_user.role == "approver2":
+        return query.filter(PurchaseRequisition.status == STATUS_PENDING_L2).order_by(PurchaseRequisition.created_at.desc()).all()
+    return []
+
+
+def get_purchase_requisition_by_id(db: Session, pr_id: int):
+    pr = get_pr_query(db).filter(PurchaseRequisition.id == pr_id).first()
+    if not pr:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase requisition not found.")
+    return pr
+
+
+def validate_pr_access(pr: PurchaseRequisition, current_user: User):
+    if current_user.role == "requester" and pr.created_by_user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only view your own PRs.")
+
+
+def approve_purchase_requisition(db: Session, pr: PurchaseRequisition, current_user: User, comments: str):
+    if current_user.role == "requester":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Requester cannot approve PR.")
+
+    if current_user.role == "approver1":
+        if pr.status != STATUS_PENDING_L1:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This PR is not pending Level 1 approval.")
+        create_approval_history(db, pr.id, current_user.email, LEVEL_1, "Approved", comments)
+        pr.status = STATUS_PENDING_L2
+        pr.current_approval_level = LEVEL_2
+        notification = create_notification(
+            db,
+            pr.id,
+            APPROVER_2_EMAIL,
+            f"Notification email sent to Approver 2: {APPROVER_2_EMAIL}\nPR Number: {pr.pr_number}",
+        )
+        toast_message = f"Notification email sent to Approver 2: {APPROVER_2_EMAIL} | PR Number: {pr.pr_number}"
+    elif current_user.role == "approver2":
+        if pr.status != STATUS_PENDING_L2:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This PR is not pending Level 2 approval.")
+        create_approval_history(db, pr.id, current_user.email, LEVEL_2, "Approved", comments)
+        pr.status = STATUS_APPROVED
+        pr.current_approval_level = LEVEL_COMPLETED
+        notification = create_notification(
+            db,
+            pr.id,
+            REQUESTER_EMAIL,
+            f"Notification email sent to Requester: {REQUESTER_EMAIL}\nPR Number: {pr.pr_number}\nStatus: Fully Approved",
+        )
+        toast_message = f"Notification email sent to Requester: {REQUESTER_EMAIL} | PR Number: {pr.pr_number} | Status: Fully Approved"
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unsupported role.")
+
+    db.commit()
+    return get_purchase_requisition_by_id(db, pr.id), notification, toast_message
+
+
+def reject_purchase_requisition(db: Session, pr: PurchaseRequisition, current_user: User, comments: str):
+    if current_user.role == "requester":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Requester cannot reject PR.")
+
+    if current_user.role == "approver1" and pr.status != STATUS_PENDING_L1:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This PR is not pending Level 1 approval.")
+    if current_user.role == "approver2" and pr.status != STATUS_PENDING_L2:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This PR is not pending Level 2 approval.")
+
+    level = LEVEL_1 if current_user.role == "approver1" else LEVEL_2
+    create_approval_history(db, pr.id, current_user.email, level, "Rejected", comments)
+    pr.status = STATUS_REJECTED
+    pr.current_approval_level = LEVEL_CLOSED
+    notification = create_notification(
+        db,
+        pr.id,
+        REQUESTER_EMAIL,
+        f"Notification email sent to Requester: {REQUESTER_EMAIL}\nPR Number: {pr.pr_number}\nStatus: Rejected",
+    )
+    db.commit()
+    toast_message = f"Notification email sent to Requester: {REQUESTER_EMAIL} | PR Number: {pr.pr_number} | Status: Rejected"
+    return get_purchase_requisition_by_id(db, pr.id), notification, toast_message
+
+
+def list_notifications(db: Session, current_user: User):
+    if current_user.role == "requester":
+        return (
+            db.query(Notification)
+            .join(PurchaseRequisition, PurchaseRequisition.id == Notification.pr_id)
+            .filter(PurchaseRequisition.created_by_user_id == current_user.id)
+            .order_by(Notification.created_at.desc())
+            .all()
+        )
+    return (
+        db.query(Notification)
+        .filter(Notification.recipient_email == current_user.email)
+        .order_by(Notification.created_at.desc())
+        .all()
+    )
