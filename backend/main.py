@@ -4,16 +4,21 @@ from sqlalchemy.orm import Session
 
 from auth import create_token, get_current_user, verify_password
 from crud import (
+    approve_purchase_requisition,
+    build_purchase_order_pdf_preview,
     copy_purchase_requisition,
     create_purchase_requisition,
     delete_purchase_requisition,
+    get_purchase_order_by_id,
     get_purchase_requisition_by_id,
     list_notifications,
+    list_purchase_orders,
     list_purchase_requisitions,
+    mark_purchase_order_goods_received,
     reject_purchase_requisition,
     update_purchase_requisition,
     validate_pr_access,
-    approve_purchase_requisition,
+    validate_purchase_order_access,
 )
 from database import get_db
 from models import User
@@ -24,6 +29,10 @@ from schemas import (
     LoginRequest,
     LoginResponse,
     NotificationListResponse,
+    PurchaseOrderDetail,
+    PurchaseOrderPdfPreview,
+    PurchaseOrderResponse,
+    PurchaseOrderSummary,
     PurchaseRequisitionCreate,
     PurchaseRequisitionDetail,
     PurchaseRequisitionSummary,
@@ -54,6 +63,7 @@ def map_pr_detail(pr) -> PurchaseRequisitionDetail:
         title=pr.title,
         department=pr.department,
         requested_by=pr.requested_by,
+        supplier_name=pr.supplier_name,
         item_name=pr.item_name,
         item_description=pr.item_description,
         quantity=pr.quantity,
@@ -68,6 +78,24 @@ def map_pr_detail(pr) -> PurchaseRequisitionDetail:
         creator_email=pr.creator.email,
         approval_history=pr.approval_history,
         notifications=pr.notifications,
+    )
+
+
+def map_po_detail(purchase_order) -> PurchaseOrderDetail:
+    return PurchaseOrderDetail(
+        id=purchase_order.id,
+        po_number=purchase_order.po_number,
+        pr_id=purchase_order.pr_id,
+        pr_number=purchase_order.pr_number,
+        supplier_name=purchase_order.supplier_name,
+        item_name=purchase_order.item_name,
+        item_description=purchase_order.item_description,
+        quantity=purchase_order.quantity,
+        amount=purchase_order.amount,
+        created_by=purchase_order.created_by,
+        created_at=purchase_order.created_at,
+        status=purchase_order.status,
+        purchase_requisition=map_pr_detail(purchase_order.purchase_requisition),
     )
 
 
@@ -170,6 +198,51 @@ def reject_pr(
     pr = get_purchase_requisition_by_id(db, pr_id)
     result_pr, notification, toast_message = reject_purchase_requisition(db, pr, current_user, payload.comments)
     return ActionResponse(pr=map_pr_detail(result_pr), toast_message=toast_message, notification=notification)
+
+
+@app.get("/purchase-orders", response_model=list[PurchaseOrderSummary])
+def get_purchase_orders(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    purchase_orders = list_purchase_orders(db, current_user)
+    return [
+        PurchaseOrderSummary.model_validate(purchase_order, from_attributes=True)
+        for purchase_order in purchase_orders
+    ]
+
+
+@app.get("/purchase-orders/{po_id}", response_model=PurchaseOrderDetail)
+def get_purchase_order(
+    po_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    purchase_order = get_purchase_order_by_id(db, po_id)
+    validate_purchase_order_access(purchase_order, current_user)
+    return map_po_detail(purchase_order)
+
+
+@app.post("/purchase-orders/{po_id}/goods-receipt", response_model=PurchaseOrderResponse)
+def mark_goods_receipt(
+    po_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    purchase_order = get_purchase_order_by_id(db, po_id)
+    result_po, toast_message = mark_purchase_order_goods_received(db, purchase_order, current_user)
+    return PurchaseOrderResponse(purchase_order=map_po_detail(result_po), toast_message=toast_message)
+
+
+@app.get("/purchase-orders/{po_id}/pdf-preview", response_model=PurchaseOrderPdfPreview)
+def get_purchase_order_pdf_preview(
+    po_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    purchase_order = get_purchase_order_by_id(db, po_id)
+    validate_purchase_order_access(purchase_order, current_user)
+    return PurchaseOrderPdfPreview(**build_purchase_order_pdf_preview(purchase_order))
 
 
 @app.get("/notifications", response_model=NotificationListResponse)

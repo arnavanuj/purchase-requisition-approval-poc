@@ -3,31 +3,35 @@ import { Link, useLocation } from "react-router-dom";
 export default function Navbar({ user, onLogout }) {
   const location = useLocation();
 
+  const requesterLinks = [
+    { to: "/requester", label: "Dashboard" },
+    { to: "/create-pr", label: "Create PR" },
+    { to: "/purchase-orders", label: "Purchase Orders" },
+  ];
+
+  const approverLinks = [
+    { to: "/approvals", label: "Approval Queue" },
+    { to: "/purchase-orders", label: "Purchase Orders" },
+  ];
+
+  const links = user?.role === "requester" ? requesterLinks : approverLinks;
+
   return (
-    <nav className="navbar">
-      <div>
+    <aside className="navbar">
+      <div className="navbar__brand">
         <h1>Purchase Requisition POC</h1>
         <p>{user?.email}</p>
       </div>
       <div className="nav-links">
-        {user?.role === "requester" ? (
-          <>
-            <Link className={location.pathname === "/requester" ? "active" : ""} to="/requester">
-              Dashboard
-            </Link>
-            <Link className={location.pathname === "/create-pr" ? "active" : ""} to="/create-pr">
-              Create PR
-            </Link>
-          </>
-        ) : (
-          <Link className={location.pathname === "/approvals" ? "active" : ""} to="/approvals">
-            Approval Queue
+        {links.map((link) => (
+          <Link key={link.to} className={location.pathname === link.to ? "active" : ""} to={link.to}>
+            {link.label}
           </Link>
-        )}
-        <button className="secondary-button" onClick={onLogout} type="button">
-          Logout
-        </button>
+        ))}
       </div>
-    </nav>
+      <button className="secondary-button navbar__logout" onClick={onLogout} type="button">
+        Logout
+      </button>
+    </aside>
   );
 }

@@ -11,6 +11,14 @@ const STATUS_VARIANTS = {
     icon: "\u{1F552}",
     className: "badge status-badge status-pending",
   },
+  generated: {
+    icon: "\u{1F4E6}",
+    className: "badge status-badge status-generated",
+  },
+  received: {
+    icon: "\u2714",
+    className: "badge status-badge status-received",
+  },
   default: {
     icon: "",
     className: "badge status-badge",
@@ -24,6 +32,14 @@ function getStatusVariant(status) {
 
   if (status === "Rejected") {
     return STATUS_VARIANTS.rejected;
+  }
+
+  if (status === "Generated") {
+    return STATUS_VARIANTS.generated;
+  }
+
+  if (status === "Goods Received") {
+    return STATUS_VARIANTS.received;
   }
 
   if (

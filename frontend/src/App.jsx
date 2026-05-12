@@ -6,6 +6,7 @@ import RequesterDashboard from "./pages/RequesterDashboard";
 import CreatePR from "./pages/CreatePR";
 import ApproverDashboard from "./pages/ApproverDashboard";
 import PRDetails from "./pages/PRDetails";
+import PurchaseOrders from "./pages/PurchaseOrders";
 import Toast from "./components/Toast";
 
 function getStoredUser() {
@@ -83,6 +84,14 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={["approver1", "approver2"]} user={user}>
               <ApproverDashboard user={user} onLogout={handleLogout} setToast={setToast} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/purchase-orders"
+          element={
+            <ProtectedRoute allowedRoles={["requester", "approver1", "approver2"]} user={user}>
+              <PurchaseOrders user={user} onLogout={handleLogout} setToast={setToast} />
             </ProtectedRoute>
           }
         />

@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import List
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -20,6 +20,7 @@ class PurchaseRequisitionCreate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     department: str = Field(min_length=1, max_length=255)
     requested_by: str = Field(min_length=1, max_length=255)
+    supplier_name: str = Field(min_length=1, max_length=255)
     item_name: str = Field(min_length=1, max_length=255)
     item_description: str = Field(min_length=1)
     quantity: int
@@ -42,11 +43,11 @@ class PurchaseRequisitionCreate(BaseModel):
             raise ValueError("Estimated cost should be greater than 0.")
         return value
 
-    @field_validator("business_justification")
+    @field_validator("business_justification", "supplier_name")
     @classmethod
-    def validate_justification(cls, value: str) -> str:
+    def validate_required_text(cls, value: str) -> str:
         if not value.strip():
-            raise ValueError("Business justification should not be empty.")
+            raise ValueError("This field should not be empty.")
         return value.strip()
 
     @field_validator("priority")
@@ -98,6 +99,7 @@ class PurchaseRequisitionSummary(BaseModel):
     title: str
     department: str
     requested_by: str
+    supplier_name: str
     item_name: str
     quantity: int
     estimated_cost: Decimal
@@ -126,6 +128,49 @@ class ActionResponse(BaseModel):
 class DeleteResponse(BaseModel):
     message: str
     toast_message: str
+
+
+class PurchaseOrderSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    po_number: str
+    pr_id: int
+    pr_number: str
+    supplier_name: str
+    item_name: str
+    quantity: int
+    amount: Decimal
+    created_by: str
+    created_at: datetime
+    status: str
+
+
+class PurchaseOrderDetail(PurchaseOrderSummary):
+    item_description: str
+    purchase_requisition: PurchaseRequisitionDetail
+
+
+class PurchaseOrderResponse(BaseModel):
+    purchase_order: PurchaseOrderDetail
+    toast_message: str
+
+
+class PurchaseOrderPdfPreview(BaseModel):
+    po_number: str
+    pr_number: str
+    supplier_name: str
+    created_by: str
+    created_at: datetime
+    item_name: str
+    item_description: str
+    quantity: int
+    amount: Decimal
+    business_justification: str
+    required_date: date
+    approval_status: str
+    approver_1_details: List[ApprovalHistoryResponse]
+    approver_2_details: List[ApprovalHistoryResponse]
 
 
 class NotificationListResponse(BaseModel):

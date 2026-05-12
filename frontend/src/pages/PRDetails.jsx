@@ -121,6 +121,7 @@ export default function PRDetails({ user, onLogout, setToast }) {
             <div className="detail-list">
               <p><strong>Department:</strong> {pr.department}</p>
               <p><strong>Requested By:</strong> {pr.requested_by}</p>
+              <p><strong>Supplier Name:</strong> {pr.supplier_name}</p>
               <p><strong>Item Name:</strong> {pr.item_name}</p>
               <p><strong>Item Description:</strong> {pr.item_description}</p>
               <p><strong>Quantity:</strong> {pr.quantity}</p>

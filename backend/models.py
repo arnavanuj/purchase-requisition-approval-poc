@@ -25,6 +25,7 @@ class PurchaseRequisition(Base):
     title = Column(String(255), nullable=False)
     department = Column(String(255), nullable=False)
     requested_by = Column(String(255), nullable=False)
+    supplier_name = Column(String(255), nullable=False, server_default="Unknown Supplier")
     item_name = Column(String(255), nullable=False)
     item_description = Column(Text, nullable=False)
     quantity = Column(Integer, nullable=False)
@@ -56,6 +57,12 @@ class PurchaseRequisition(Base):
         cascade="all, delete-orphan",
         order_by="Notification.created_at",
     )
+    purchase_order = relationship(
+        "PurchaseOrder",
+        back_populates="purchase_requisition",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
 
 class ApprovalHistory(Base):
@@ -82,3 +89,22 @@ class Notification(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     purchase_requisition = relationship("PurchaseRequisition", back_populates="notifications")
+
+
+class PurchaseOrder(Base):
+    __tablename__ = "purchase_orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    po_number = Column(String(20), unique=True, nullable=False, index=True)
+    pr_id = Column(Integer, ForeignKey("purchase_requisitions.id"), nullable=False, unique=True, index=True)
+    pr_number = Column(String(20), nullable=False, index=True)
+    supplier_name = Column(String(255), nullable=False)
+    item_name = Column(String(255), nullable=False)
+    item_description = Column(Text, nullable=False)
+    quantity = Column(Integer, nullable=False)
+    amount = Column(Numeric(12, 2), nullable=False)
+    created_by = Column(String(255), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    status = Column(String(50), nullable=False, index=True)
+
+    purchase_requisition = relationship("PurchaseRequisition", back_populates="purchase_order")

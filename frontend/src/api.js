@@ -58,5 +58,12 @@ export const api = {
     request(`/purchase-requisitions/${id}`, {
       method: "DELETE",
     }),
+  getPurchaseOrders: () => request("/purchase-orders"),
+  getPurchaseOrder: (id) => request(`/purchase-orders/${id}`),
+  markGoodsReceipt: (id) =>
+    request(`/purchase-orders/${id}/goods-receipt`, {
+      method: "POST",
+    }),
+  getPurchaseOrderPdfPreview: (id) => request(`/purchase-orders/${id}/pdf-preview`),
   getNotifications: () => request("/notifications"),
 };

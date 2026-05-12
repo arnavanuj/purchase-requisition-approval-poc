@@ -8,6 +8,7 @@ const initialForm = {
   title: "",
   department: "",
   requested_by: "",
+  supplier_name: "",
   item_name: "",
   item_description: "",
   quantity: 1,
@@ -49,6 +50,7 @@ export default function CreatePR({ user, onLogout, setToast }) {
           title: data.title,
           department: data.department,
           requested_by: data.requested_by,
+          supplier_name: data.supplier_name,
           item_name: data.item_name,
           item_description: data.item_description,
           quantity: data.quantity,
@@ -146,6 +148,10 @@ export default function CreatePR({ user, onLogout, setToast }) {
           <label>
             Requested By
             <input name="requested_by" onChange={handleChange} required value={form.requested_by} />
+          </label>
+          <label>
+            Supplier Name
+            <input name="supplier_name" onChange={handleChange} required value={form.supplier_name} />
           </label>
           <label>
             Item Name
