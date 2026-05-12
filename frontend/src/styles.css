@@ -243,6 +243,26 @@ select {
   overflow-x: auto;
 }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+}
+
+.pagination__button {
+  min-width: 88px;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+.pagination__info {
+  color: #475569;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

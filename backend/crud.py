@@ -43,15 +43,33 @@ def create_seed_user(db: Session, email: str, password: str, role: str) -> User:
 def generate_pr_number(db: Session) -> str:
     current_year = datetime.utcnow().year
     prefix = f"PR-{current_year}-"
-    count = db.query(PurchaseRequisition).filter(PurchaseRequisition.pr_number.like(f"{prefix}%")).count()
-    return f"{prefix}{count + 1:04d}"
+    latest = (
+        db.query(PurchaseRequisition.pr_number)
+        .filter(PurchaseRequisition.pr_number.like(f"{prefix}%"))
+        .order_by(PurchaseRequisition.pr_number.desc())
+        .first()
+    )
+    if not latest:
+        return f"{prefix}0001"
+
+    latest_suffix = int(latest[0].rsplit("-", 1)[-1])
+    return f"{prefix}{latest_suffix + 1:04d}"
 
 
 def generate_po_number(db: Session) -> str:
     current_year = datetime.utcnow().year
     prefix = f"PO-{current_year}-"
-    count = db.query(PurchaseOrder).filter(PurchaseOrder.po_number.like(f"{prefix}%")).count()
-    return f"{prefix}{count + 1:04d}"
+    latest = (
+        db.query(PurchaseOrder.po_number)
+        .filter(PurchaseOrder.po_number.like(f"{prefix}%"))
+        .order_by(PurchaseOrder.po_number.desc())
+        .first()
+    )
+    if not latest:
+        return f"{prefix}0001"
+
+    latest_suffix = int(latest[0].rsplit("-", 1)[-1])
+    return f"{prefix}{latest_suffix + 1:04d}"
 
 
 def create_notification(db: Session, pr_id: int, recipient_email: str, message: str) -> Notification:

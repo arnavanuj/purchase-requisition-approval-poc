@@ -1,16 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { api } from "../api";
 import Navbar from "../components/Navbar";
+import Pagination from "../components/Pagination";
 import StatusBadge from "../components/StatusBadge";
 
 export default function RequesterDashboard({ user, onLogout, setToast }) {
+  const recordsPerPage = 10;
   const navigate = useNavigate();
   const [purchaseRequisitions, setPurchaseRequisitions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [actioningId, setActioningId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadData = async () => {
     setLoading(true);
@@ -41,6 +44,19 @@ export default function RequesterDashboard({ user, onLogout, setToast }) {
     window.addEventListener("click", handleWindowClick);
     return () => window.removeEventListener("click", handleWindowClick);
   }, []);
+
+  useEffect(() => {
+    setCurrentPage((page) => {
+      const nextTotalPages = Math.max(1, Math.ceil(purchaseRequisitions.length / recordsPerPage));
+      return Math.min(page, nextTotalPages);
+    });
+  }, [purchaseRequisitions.length]);
+
+  const totalPages = Math.max(1, Math.ceil(purchaseRequisitions.length / recordsPerPage));
+  const currentRecords = useMemo(() => {
+    const startIndex = (currentPage - 1) * recordsPerPage;
+    return purchaseRequisitions.slice(startIndex, startIndex + recordsPerPage);
+  }, [currentPage, purchaseRequisitions]);
 
   const toggleMenu = (event, prId) => {
     event.preventDefault();
@@ -113,87 +129,90 @@ export default function RequesterDashboard({ user, onLogout, setToast }) {
           ) : purchaseRequisitions.length === 0 ? (
             <p>No PRs found yet.</p>
           ) : (
-            <div className="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>PR Number</th>
-                    <th>Title</th>
-                    <th>Department</th>
-                    <th>Item</th>
-                    <th>Estimated Cost</th>
-                    <th>Priority</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {purchaseRequisitions.map((pr) => (
-                    <tr key={pr.id}>
-                      <td>
-                        <div className="pr-number-cell">
-                          <div className="pr-action-menu">
-                            <button
-                              aria-expanded={openMenuId === pr.id}
-                              aria-haspopup="menu"
-                              className="icon-button"
-                              disabled={actioningId === pr.id}
-                              onClick={(event) => toggleMenu(event, pr.id)}
-                              onContextMenu={(event) => toggleMenu(event, pr.id)}
-                              type="button"
-                            >
-                              &#8942;
-                            </button>
-                            {openMenuId === pr.id ? (
-                              <div
-                                className="dropdown-menu"
-                                onClick={(event) => event.stopPropagation()}
-                                role="menu"
-                              >
-                                <button className="dropdown-menu__item" onClick={() => handleView(pr.id)} type="button">
-                                  View PR
-                                </button>
-                                {!isFullyApproved(pr.status) ? (
-                                  <button className="dropdown-menu__item" onClick={() => handleEdit(pr.id)} type="button">
-                                    Edit PR
-                                  </button>
-                                ) : null}
-                                <button className="dropdown-menu__item" onClick={() => handleCopy(pr.id)} type="button">
-                                  Copy Create PR
-                                </button>
-                                {!isFullyApproved(pr.status) ? (
-                                  <button
-                                    className="dropdown-menu__item dropdown-menu__item--danger"
-                                    onClick={() => handleDelete(pr.id)}
-                                    type="button"
-                                  >
-                                    Delete PR
-                                  </button>
-                                ) : null}
-                              </div>
-                            ) : null}
-                          </div>
-                          <span>{pr.pr_number}</span>
-                        </div>
-                      </td>
-                      <td>{pr.title}</td>
-                      <td>{pr.department}</td>
-                      <td>{pr.item_name}</td>
-                      <td>${Number(pr.estimated_cost).toFixed(2)}</td>
-                      <td>{pr.priority}</td>
-                      <td><StatusBadge status={pr.status} /></td>
-                      <td>{new Date(pr.created_at).toLocaleDateString()}</td>
-                      <td>
-                        <Link className="inline-link" to={`/purchase-requisitions/${pr.id}`}>
-                          View details
-                        </Link>
-                      </td>
+            <>
+              <div className="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>PR Number</th>
+                      <th>Title</th>
+                      <th>Department</th>
+                      <th>Item</th>
+                      <th>Estimated Cost</th>
+                      <th>Priority</th>
+                      <th>Status</th>
+                      <th>Created</th>
+                      <th>Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {currentRecords.map((pr) => (
+                      <tr key={pr.id}>
+                        <td>
+                          <div className="pr-number-cell">
+                            <div className="pr-action-menu">
+                              <button
+                                aria-expanded={openMenuId === pr.id}
+                                aria-haspopup="menu"
+                                className="icon-button"
+                                disabled={actioningId === pr.id}
+                                onClick={(event) => toggleMenu(event, pr.id)}
+                                onContextMenu={(event) => toggleMenu(event, pr.id)}
+                                type="button"
+                              >
+                                &#8942;
+                              </button>
+                              {openMenuId === pr.id ? (
+                                <div
+                                  className="dropdown-menu"
+                                  onClick={(event) => event.stopPropagation()}
+                                  role="menu"
+                                >
+                                  <button className="dropdown-menu__item" onClick={() => handleView(pr.id)} type="button">
+                                    View PR
+                                  </button>
+                                  {!isFullyApproved(pr.status) ? (
+                                    <button className="dropdown-menu__item" onClick={() => handleEdit(pr.id)} type="button">
+                                      Edit PR
+                                    </button>
+                                  ) : null}
+                                  <button className="dropdown-menu__item" onClick={() => handleCopy(pr.id)} type="button">
+                                    Copy Create PR
+                                  </button>
+                                  {!isFullyApproved(pr.status) ? (
+                                    <button
+                                      className="dropdown-menu__item dropdown-menu__item--danger"
+                                      onClick={() => handleDelete(pr.id)}
+                                      type="button"
+                                    >
+                                      Delete PR
+                                    </button>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                            </div>
+                            <span>{pr.pr_number}</span>
+                          </div>
+                        </td>
+                        <td>{pr.title}</td>
+                        <td>{pr.department}</td>
+                        <td>{pr.item_name}</td>
+                        <td>${Number(pr.estimated_cost).toFixed(2)}</td>
+                        <td>{pr.priority}</td>
+                        <td><StatusBadge status={pr.status} /></td>
+                        <td>{new Date(pr.created_at).toLocaleDateString()}</td>
+                        <td>
+                          <Link className="inline-link" to={`/purchase-requisitions/${pr.id}`}>
+                            View details
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination currentPage={currentPage} onPageChange={setCurrentPage} totalPages={totalPages} />
+            </>
           )}
         </div>
       </main>
