@@ -123,6 +123,11 @@ class ActionResponse(BaseModel):
     notification: NotificationResponse
 
 
+class DeleteResponse(BaseModel):
+    message: str
+    toast_message: str
+
+
 class NotificationListResponse(BaseModel):
     notifications: List[NotificationResponse]
 

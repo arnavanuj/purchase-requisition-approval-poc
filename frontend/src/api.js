@@ -35,6 +35,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  updatePurchaseRequisition: (id, payload) =>
+    request(`/purchase-requisitions/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
   approvePurchaseRequisition: (id, payload) =>
     request(`/purchase-requisitions/${id}/approve`, {
       method: "POST",
@@ -44,6 +49,14 @@ export const api = {
     request(`/purchase-requisitions/${id}/reject`, {
       method: "POST",
       body: JSON.stringify(payload),
+    }),
+  copyPurchaseRequisition: (id) =>
+    request(`/purchase-requisitions/${id}/copy`, {
+      method: "POST",
+    }),
+  deletePurchaseRequisition: (id) =>
+    request(`/purchase-requisitions/${id}`, {
+      method: "DELETE",
     }),
   getNotifications: () => request("/notifications"),
 };

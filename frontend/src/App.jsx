@@ -87,6 +87,14 @@ export default function App() {
           }
         />
         <Route
+          path="/purchase-requisitions/:id/edit"
+          element={
+            <ProtectedRoute allowedRoles={["requester"]} user={user}>
+              <CreatePR user={user} onLogout={handleLogout} setToast={setToast} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/purchase-requisitions/:id"
           element={
             <ProtectedRoute allowedRoles={["requester", "approver1", "approver2"]} user={user}>

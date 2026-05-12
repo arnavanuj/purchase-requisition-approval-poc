@@ -4,11 +4,14 @@ from sqlalchemy.orm import Session
 
 from auth import create_token, get_current_user, verify_password
 from crud import (
+    copy_purchase_requisition,
     create_purchase_requisition,
+    delete_purchase_requisition,
     get_purchase_requisition_by_id,
     list_notifications,
     list_purchase_requisitions,
     reject_purchase_requisition,
+    update_purchase_requisition,
     validate_pr_access,
     approve_purchase_requisition,
 )
@@ -17,6 +20,7 @@ from models import User
 from schemas import (
     ActionResponse,
     ApprovalActionRequest,
+    DeleteResponse,
     LoginRequest,
     LoginResponse,
     NotificationListResponse,
@@ -89,6 +93,40 @@ def create_pr(
         toast_message=f"Notification email sent to Approver 1: {notification.recipient_email} | PR Number: {pr.pr_number}",
         notification=notification,
     )
+
+
+@app.put("/purchase-requisitions/{pr_id}", response_model=ActionResponse)
+def update_pr(
+    pr_id: int,
+    payload: PurchaseRequisitionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    pr = get_purchase_requisition_by_id(db, pr_id)
+    result_pr, notification, toast_message = update_purchase_requisition(db, pr, payload, current_user)
+    return ActionResponse(pr=map_pr_detail(result_pr), toast_message=toast_message, notification=notification)
+
+
+@app.post("/purchase-requisitions/{pr_id}/copy", response_model=ActionResponse)
+def copy_pr(
+    pr_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    pr = get_purchase_requisition_by_id(db, pr_id)
+    result_pr, notification, toast_message = copy_purchase_requisition(db, pr, current_user)
+    return ActionResponse(pr=map_pr_detail(result_pr), toast_message=toast_message, notification=notification)
+
+
+@app.delete("/purchase-requisitions/{pr_id}", response_model=DeleteResponse)
+def delete_pr(
+    pr_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    pr = get_purchase_requisition_by_id(db, pr_id)
+    message, toast_message = delete_purchase_requisition(db, pr, current_user)
+    return DeleteResponse(message=message, toast_message=toast_message)
 
 
 @app.get("/purchase-requisitions", response_model=list[PurchaseRequisitionSummary])

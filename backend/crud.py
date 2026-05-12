@@ -15,11 +15,15 @@ STATUS_PENDING_L1 = "Pending Level 1 Approval"
 STATUS_PENDING_L2 = "Pending Level 2 Approval"
 STATUS_APPROVED = "Fully Approved"
 STATUS_REJECTED = "Rejected"
+STATUS_SUBMITTED = "Submitted"
+STATUS_CREATED = "Created"
+STATUS_DRAFT = "Draft"
 
 LEVEL_1 = "Approver 1"
 LEVEL_2 = "Approver 2"
 LEVEL_COMPLETED = "Completed"
 LEVEL_CLOSED = "Closed"
+LEVEL_REQUESTER = "Requester"
 
 
 def create_seed_user(db: Session, email: str, password: str, role: str) -> User:
@@ -109,6 +113,95 @@ def create_purchase_requisition(db: Session, payload, current_user: User):
     return get_purchase_requisition_by_id(db, pr.id), notification
 
 
+def update_purchase_requisition(db: Session, pr: PurchaseRequisition, payload, current_user: User):
+    validate_requester_pr_ownership(pr, current_user)
+    if pr.status == STATUS_APPROVED:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Fully Approved PR cannot be edited.")
+
+    pr.title = payload.title.strip()
+    pr.department = payload.department.strip()
+    pr.requested_by = payload.requested_by.strip()
+    pr.item_name = payload.item_name.strip()
+    pr.item_description = payload.item_description.strip()
+    pr.quantity = payload.quantity
+    pr.estimated_cost = payload.estimated_cost
+    pr.business_justification = payload.business_justification.strip()
+    pr.required_date = payload.required_date
+    pr.priority = payload.priority
+
+    if pr.status in {
+        STATUS_PENDING_L1,
+        STATUS_PENDING_L2,
+        STATUS_REJECTED,
+        STATUS_SUBMITTED,
+        STATUS_CREATED,
+        STATUS_DRAFT,
+    }:
+        pr.status = STATUS_PENDING_L1
+        pr.current_approval_level = LEVEL_1
+
+    create_approval_history(
+        db,
+        pr.id,
+        current_user.email,
+        LEVEL_REQUESTER,
+        "Edited and Resubmitted",
+        "Requester updated the PR details and resubmitted it for approval.",
+    )
+    notification = create_notification(
+        db,
+        pr.id,
+        APPROVER_1_EMAIL,
+        f"Notification email sent to Approver 1: {APPROVER_1_EMAIL}\nPR Number: {pr.pr_number}",
+    )
+    db.commit()
+    toast_message = f"Notification email sent to Approver 1: {APPROVER_1_EMAIL}"
+    return get_purchase_requisition_by_id(db, pr.id), notification, toast_message
+
+
+def copy_purchase_requisition(db: Session, pr: PurchaseRequisition, current_user: User):
+    validate_requester_pr_ownership(pr, current_user)
+
+    copied_pr = PurchaseRequisition(
+        pr_number=generate_pr_number(db),
+        title=pr.title,
+        department=pr.department,
+        requested_by=pr.requested_by,
+        item_name=pr.item_name,
+        item_description=pr.item_description,
+        quantity=pr.quantity,
+        estimated_cost=pr.estimated_cost,
+        business_justification=pr.business_justification,
+        required_date=pr.required_date,
+        priority=pr.priority,
+        status=STATUS_PENDING_L1,
+        current_approval_level=LEVEL_1,
+        created_by_user_id=current_user.id,
+    )
+    db.add(copied_pr)
+    db.flush()
+
+    notification = create_notification(
+        db,
+        copied_pr.id,
+        APPROVER_1_EMAIL,
+        f"Notification email sent to Approver 1: {APPROVER_1_EMAIL}\nPR Number: {copied_pr.pr_number}",
+    )
+    db.commit()
+    toast_message = f"Copied PR created successfully. Notification email sent to Approver 1: {APPROVER_1_EMAIL}"
+    return get_purchase_requisition_by_id(db, copied_pr.id), notification, toast_message
+
+
+def delete_purchase_requisition(db: Session, pr: PurchaseRequisition, current_user: User):
+    validate_requester_pr_ownership(pr, current_user)
+    if pr.status == STATUS_APPROVED:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Fully Approved PR cannot be deleted.")
+
+    db.delete(pr)
+    db.commit()
+    return "Purchase requisition deleted.", "PR deleted successfully"
+
+
 def list_purchase_requisitions(db: Session, current_user: User):
     query = get_pr_query(db)
     if current_user.role == "requester":
@@ -130,6 +223,19 @@ def get_purchase_requisition_by_id(db: Session, pr_id: int):
 def validate_pr_access(pr: PurchaseRequisition, current_user: User):
     if current_user.role == "requester" and pr.created_by_user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only view your own PRs.")
+
+
+def validate_requester_pr_ownership(pr: PurchaseRequisition, current_user: User):
+    if current_user.role != "requester":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only requester can edit, copy, or delete PRs.",
+        )
+    if pr.created_by_user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only manage your own PRs.",
+        )
 
 
 def approve_purchase_requisition(db: Session, pr: PurchaseRequisition, current_user: User, comments: str):
