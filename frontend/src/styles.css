@@ -220,24 +220,29 @@ th {
   font-weight: 700;
 }
 
-.pending-l1 {
-  background: #ffedd5;
-  color: #c2410c;
+.status-badge {
+  gap: 0.4rem;
+  white-space: nowrap;
 }
 
-.pending-l2 {
-  background: #dbeafe;
-  color: #1d4ed8;
+.status-badge__icon {
+  font-size: 0.95rem;
+  line-height: 1;
 }
 
-.approved {
+.status-approved {
   background: #dcfce7;
   color: #15803d;
 }
 
-.rejected {
+.status-rejected {
   background: #fee2e2;
   color: #b91c1c;
+}
+
+.status-pending {
+  background: #ffedd5;
+  color: #c2410c;
 }
 
 .details-grid {
