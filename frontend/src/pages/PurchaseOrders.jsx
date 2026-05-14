@@ -3,10 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import Navbar from "../components/Navbar";
 import Pagination from "../components/Pagination";
+import ProjectInfoDropdown from "../components/ProjectInfoDropdown";
 import StatusBadge from "../components/StatusBadge";
 
 export default function PurchaseOrders({ user, onLogout, setToast }) {
-  const recordsPerPage = 10;
+  const recordsPerPage = 5;
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actioningId, setActioningId] = useState(null);
@@ -104,6 +105,9 @@ export default function PurchaseOrders({ user, onLogout, setToast }) {
           <div>
             <h2>Purchase Orders</h2>
             <p>Review the automatically generated purchase orders created from fully approved PRs.</p>
+          </div>
+          <div className="page-header__actions">
+            <ProjectInfoDropdown />
           </div>
         </div>
 

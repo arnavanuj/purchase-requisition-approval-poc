@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { api } from "../api";
 import Navbar from "../components/Navbar";
+import ProjectInfoDropdown from "../components/ProjectInfoDropdown";
 
 const initialForm = {
   title: "",
@@ -121,6 +122,9 @@ export default function CreatePR({ user, onLogout, setToast }) {
                 ? "Update the PR details and resubmit it through the approval workflow."
                 : "Submit a new PR to start the two-level approval workflow."}
             </p>
+          </div>
+          <div className="page-header__actions">
+            <ProjectInfoDropdown />
           </div>
         </div>
 

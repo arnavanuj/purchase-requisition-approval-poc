@@ -4,10 +4,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import Navbar from "../components/Navbar";
 import Pagination from "../components/Pagination";
+import ProjectInfoDropdown from "../components/ProjectInfoDropdown";
 import StatusBadge from "../components/StatusBadge";
 
 export default function RequesterDashboard({ user, onLogout, setToast }) {
-  const recordsPerPage = 10;
+  const recordsPerPage = 5;
   const navigate = useNavigate();
   const [purchaseRequisitions, setPurchaseRequisitions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -117,9 +118,12 @@ export default function RequesterDashboard({ user, onLogout, setToast }) {
             <h2>Requester Dashboard</h2>
             <p>Track your purchase requisitions and their approval progress.</p>
           </div>
-          <Link className="primary-link-button" to="/create-pr">
-            Create PR
-          </Link>
+          <div className="page-header__actions">
+            <Link className="primary-link-button" to="/create-pr">
+              Create PR
+            </Link>
+            <ProjectInfoDropdown />
+          </div>
         </div>
 
         <div className="card">

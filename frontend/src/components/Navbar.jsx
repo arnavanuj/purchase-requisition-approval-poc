@@ -18,16 +18,18 @@ export default function Navbar({ user, onLogout }) {
 
   return (
     <aside className="navbar">
-      <div className="navbar__brand">
-        <h1>Purchase Requisition POC</h1>
-        <p>{user?.email}</p>
-      </div>
-      <div className="nav-links">
-        {links.map((link) => (
-          <Link key={link.to} className={location.pathname === link.to ? "active" : ""} to={link.to}>
-            {link.label}
-          </Link>
-        ))}
+      <div className="navbar__top">
+        <div className="navbar__brand">
+          <h1>Purchase Requisition POC</h1>
+          <p>{user?.email}</p>
+        </div>
+        <div className="nav-links">
+          {links.map((link) => (
+            <Link key={link.to} className={location.pathname === link.to ? "active" : ""} to={link.to}>
+              {link.label}
+            </Link>
+          ))}
+        </div>
       </div>
       <button className="secondary-button navbar__logout" onClick={onLogout} type="button">
         Logout

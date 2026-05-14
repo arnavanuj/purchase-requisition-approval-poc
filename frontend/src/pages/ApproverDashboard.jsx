@@ -4,10 +4,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import Navbar from "../components/Navbar";
 import Pagination from "../components/Pagination";
+import ProjectInfoDropdown from "../components/ProjectInfoDropdown";
 import StatusBadge from "../components/StatusBadge";
 
 export default function ApproverDashboard({ user, onLogout, setToast }) {
-  const recordsPerPage = 10;
+  const recordsPerPage = 5;
   const navigate = useNavigate();
   const [purchaseRequisitions, setPurchaseRequisitions] = useState([]);
   const [comments, setComments] = useState({});
@@ -75,6 +76,9 @@ export default function ApproverDashboard({ user, onLogout, setToast }) {
           <div>
             <h2>{user.role === "approver1" ? "Approver 1 Queue" : "Approver 2 Queue"}</h2>
             <p>Review PRs assigned to your current approval level.</p>
+          </div>
+          <div className="page-header__actions">
+            <ProjectInfoDropdown />
           </div>
         </div>
 
